@@ -91,7 +91,7 @@ This function doesn't have to do anything. Any value returned is ignored.
 PS.enter = function( x, y, data, options ) {
 	// Uncomment the following code line to inspect x/y parameters:
 
-	PS.debug( "PS.enter() @ " + score + "\n" );
+	//PS.debug( "PS.enter() @ " + score + "\n" );
 
 	// Add code here for when the mouse cursor/touch enters a bead.
 	// Toggle color of touched bead from white to black and back again
