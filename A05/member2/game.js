@@ -15,7 +15,7 @@ Last revision: 2022-03-15 (BM)
 
 "use strict"; // Do NOT remove this directive!
 
-let score = 1;
+let score = 0;
 const grid_x = 8;
 const grid_y = 8;
 const win_score = grid_y * grid_x;
@@ -43,11 +43,11 @@ PS.init = function( system, options ) {
 	for (let x_index = 0; x_index < grid_x; x_index++){
 		for (let y_index = 0; y_index < grid_y; y_index++) {
 			if((Math.floor(Math.random() * 2)) === 1){
-				PS.data( x_index, y_index, PS.COLOR_BLACK )
+				PS.data( x_index, y_index, PS.COLOR_WHITE )
 				PS.color(x_index, y_index, PS.COLOR_WHITE);
 			}
 			else{
-				PS.data( x_index, y_index, PS.COLOR_WHITE )
+				PS.data( x_index, y_index, PS.COLOR_BLACK )
 				PS.color(x_index, y_index, PS.COLOR_BLACK)
 				score = score + 1;
 			}
@@ -91,12 +91,9 @@ This function doesn't have to do anything. Any value returned is ignored.
 PS.enter = function( x, y, data, options ) {
 	// Uncomment the following code line to inspect x/y parameters:
 
-	//PS.debug( "PS.enter() @ " + score + "\n" );
-
 	// Add code here for when the mouse cursor/touch enters a bead.
 	// Toggle color of touched bead from white to black and back again
 	// NOTE: The default value of a bead's [data] is 0, which happens to be equal to PS.COLOR_BLACK
-	PS.color( x, y, data ); // set color to current value of data
 
 	// Decide what the next color should be.
 	// If the current value was black, change it to white.
@@ -105,31 +102,22 @@ PS.enter = function( x, y, data, options ) {
 	// NOTE: This is not the most succinct way to code this functionality.
 	// It's written this way for clarity.
 
-	if (score === win_score){
-		// Play tada sound.
-		PS.audioPlay( "fx_tada" );
-		PS.statusText( "YOU WIN! Are you proud?" );
-		for (let x_index = 0; x_index < grid_x; x_index++){
-			for (let y_index = 0; y_index < grid_y; y_index++) {
-					PS.data(x_index, y_index, PS.COLOR_GREEN)
-					PS.color(x_index, y_index, PS.COLOR_GREEN)
-			}
-		}
-		score = 0;
-	}
-
 	let next; // variable to save next color
 
 	if ( data === PS.COLOR_BLACK ) {
 		next = PS.COLOR_WHITE;
-		score = score +1;
+		PS.color(x, y, next)
+		score = score - 1;
 		PS.audioPlay("fx_click");
 	}
 	else if ( data === PS.COLOR_WHITE ){
 		next = PS.COLOR_BLACK;
-		score = score -1;
+		PS.color(x, y, next)
+		score = score + 1;
 		PS.audioPlay("fx_click");
 	}
+
+	//PS.debug( "Was " + data + ", but is now " + next + ". Score is" + score + "\n" );
 
 	// NOTE: The above statement could be expressed more succinctly using JavaScript's ternary operator:
 	// let next = ( data === PS.COLOR_BLACK ) ? PS.COLOR_WHITE : PS.COLOR_BLACK;
@@ -137,6 +125,19 @@ PS.enter = function( x, y, data, options ) {
 	// Remember the newly-changed color by storing it in the bead's data.
 
 	PS.data( x, y, next );
+
+	if (score === win_score){
+		// Play tada sound.
+		PS.audioPlay( "fx_tada" );
+		PS.statusText( "YOU WIN! Are you proud?" );
+		for (let x_index = 0; x_index < grid_x; x_index++){
+			for (let y_index = 0; y_index < grid_y; y_index++) {
+				PS.data(x_index, y_index, PS.COLOR_GREEN)
+				PS.color(x_index, y_index, PS.COLOR_GREEN)
+			}
+		}
+		score = 0;
+	}
 };
 
 /*
