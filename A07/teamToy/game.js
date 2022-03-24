@@ -55,6 +55,7 @@ const Toy = {
 	groundColor: 0x4F9327,
 	foodColor: 0xA8341D,
 	petSize: 1,
+	sinceEat: 0
 }
 
 PS.init = function( system, options ) {
@@ -117,6 +118,7 @@ function petActions() {
 		Math.abs(Toy.foodY - (petY + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1)){
 		PS.audioPlay("fx_pop", {volume: 0.5});
 		Toy.petSize += 1;
+		Toy.sinceEat = 0;
 		petY = petY - 1;
 		PS.alpha(Toy.foodX, Toy.foodY, 0);
 		Toy.foodX = undefined;
@@ -125,10 +127,22 @@ function petActions() {
 		Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
 		PS.spriteSolidColor (Toy.pet, Toy.petColor );
 		PS.spriteMove(Toy.pet, petX ,petY);
+	} else if (Toy.sinceEat > 10 && Toy.petSize > 1) {
+		Toy.sinceEat = 0;
+
+		Toy.petSize -= 1;
+		petY = petY + 1;
+		PS.spriteDelete(Toy.pet);
+		Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
+		PS.spriteSolidColor (Toy.pet, Toy.petColor );
+		PS.spriteMove(Toy.pet, petX ,petY);
+		
+		PS.statusText( "Click to feed your buddy." );
 	}
 	if (Toy.animationTime === 0){
 		if (PS.random(2) === 1){
 			Toy.animationTime = 5;
+			Toy.sinceEat += 1;
 			Toy.direction = PS.random(3) - 2;
 			if (petX > PS.gridSize().width - (5 + Toy.petSize)){
 				Toy.direction = -1;
