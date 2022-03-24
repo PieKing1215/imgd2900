@@ -48,6 +48,10 @@ Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
+const Toy = {
+	particles: [],
+}
+
 PS.init = function( system, options ) {
 	// Uncomment the following code line
 	// to verify operation:
@@ -64,7 +68,7 @@ PS.init = function( system, options ) {
 	// Uncomment the following code line and change
 	// the x and y parameters as needed.
 
-	// PS.gridSize( 8, 8 );
+	PS.gridSize( 32, 32 );
 
 	// This is also a good place to display
 	// your game title or a welcome message
@@ -75,7 +79,44 @@ PS.init = function( system, options ) {
 	// PS.statusText( "Game" );
 
 	// Add any other initialization code you need here.
+
+	PS.timerStart(1, () => {
+		let grid_size = PS.gridSize();
+		for (let x = 0; x < grid_size.width; x++){
+			for (let y = 0; y < grid_size.height; y++){
+				PS.color(x, y, PS.COLOR_WHITE);
+			}
+		}
+
+		for (let i in Toy.particles) {
+			let p = Toy.particles[i];
+
+			p.x += p.vx;
+			p.y += p.vy;
+
+			let wind = wind_at(p.x, p.y);
+			p.vx += wind[0];
+			p.vy += wind[1] + 0.00025;
+
+			p.x += p.vx;
+			p.y += p.vy;
+
+			let int_x = Math.floor(p.x);
+			let int_y = Math.floor(p.y);
+
+			if (int_x >= 0 && int_x < grid_size.width && int_y >= 0 && int_y < grid_size.height) {
+				PS.color(int_x, int_y, p.color);
+			}
+		}
+	})
 };
+
+function wind_at(x, y) {
+	return [
+		Math.sin(x) * 0.0025,
+		Math.sin(-x * 2.0 + 0.1) * 0.0025,
+	]
+}
 
 /*
 PS.touch ( x, y, data, options )
@@ -95,6 +136,17 @@ PS.touch = function( x, y, data, options ) {
 
 	// Add code here for mouse clicks/touches
 	// over a bead.
+
+	Toy.particles.push(
+		{
+			x: x,
+			y: y,
+			vx: 0,
+			vy: 0.01,
+			color: PS.COLOR_BLACK,
+		}
+	);
+
 };
 
 /*
