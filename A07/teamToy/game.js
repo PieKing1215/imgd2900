@@ -110,8 +110,8 @@ PS.init = function( system, options ) {
 function petActions() {
 	let petX = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).x;
 	let petY = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).y;
-	if(Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= Toy.petSize/2 &&
-		Math.abs(Toy.foodY - petY) <= Toy.petSize){
+	if(Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= (Toy.petSize/2 + 1) &&
+		Math.abs(Toy.foodY - (petY + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1)){
 		Toy.petSize += 1;
 		petY = petY - 1;
 		PS.alpha(Toy.foodX, Toy.foodY, 0);
@@ -176,7 +176,7 @@ PS.touch = function( x, y, data, options ) {
 	// Add code here for mouse clicks/touches
 	// over a bead.
 
-	if(Toy.foodY === undefined && x < PS.gridSize().width - 5 && x > 5) {
+	if(Toy.foodY === undefined && x < PS.gridSize().width - 2 && x > 2) {
 		PS.color(x, y, PS.COLOR_BLUE)
 		Toy.foodX = x;
 		Toy.foodY = y;
