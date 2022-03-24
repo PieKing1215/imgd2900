@@ -103,7 +103,7 @@ PS.init = function( system, options ) {
 	// Uncomment the following code line and
 	// change the string parameter as needed.
 
-	PS.statusText( "Click to feed your buddy." );
+	PS.statusText("");
 
 	// Add any other initialization code you need here.
 
@@ -137,7 +137,7 @@ function petActions() {
 		PS.spriteSolidColor (Toy.pet, Toy.petColor );
 		PS.spriteMove(Toy.pet, petX ,petY);
 		
-		PS.statusText( "Click to feed your buddy." );
+		PS.statusText("");
 	}
 	if (Toy.animationTime === 0){
 		if (PS.random(2) === 1){
