@@ -75,6 +75,9 @@ PS.init = function( system, options ) {
 
 	PS.gridSize( 32, 32 );
 	PS.gridColor(0xADE4EA);
+
+	PS.audioLoad("fx_pop");
+
 	let grid_size = PS.gridSize();
 
 	PS.border(PS.ALL, PS.ALL, 0);
@@ -112,6 +115,7 @@ function petActions() {
 	let petY = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).y;
 	if(Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= (Toy.petSize/2 + 1) &&
 		Math.abs(Toy.foodY - (petY + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1)){
+		PS.audioPlay("fx_pop", {volume: 0.5});
 		Toy.petSize += 1;
 		petY = petY - 1;
 		PS.alpha(Toy.foodX, Toy.foodY, 0);
@@ -176,10 +180,15 @@ PS.touch = function( x, y, data, options ) {
 	// Add code here for mouse clicks/touches
 	// over a bead.
 
-	if(Toy.foodY === undefined && x < PS.gridSize().width - 2 && x > 2) {
-		PS.color(x, y, PS.COLOR_BLUE)
-		Toy.foodX = x;
-		Toy.foodY = y;
+	if(Toy.foodY === undefined) {
+		if (Toy.petSize > 16) {
+			PS.statusText("Your Buddy is stuffed!");
+		} else {
+			let clipX = Math.min(Math.max(3, x), PS.gridSize().width - 3);
+			PS.color(clipX, y, PS.COLOR_BLUE)
+			Toy.foodX = clipX;
+			Toy.foodY = y;
+		}
 	}
 
 	// Toy.particles.push(
