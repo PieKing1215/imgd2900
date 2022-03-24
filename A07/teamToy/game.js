@@ -50,6 +50,11 @@ Any value returned is ignored.
 
 const Toy = {
 	particles: [],
+	animationTime: 0,
+	petColor: 0x7B5725,
+	groundColor: 0x4F9327,
+	foodColor: 0xA8341D,
+	petSize: 1,
 }
 
 PS.init = function( system, options ) {
@@ -69,7 +74,25 @@ PS.init = function( system, options ) {
 	// the x and y parameters as needed.
 
 	PS.gridSize( 32, 32 );
+	PS.gridColor(0xADE4EA);
+	let grid_size = PS.gridSize();
 
+	PS.border(PS.ALL, PS.ALL, 0);
+	PS.alpha(PS.ALL, PS.ALL, 0);
+
+	for (let i = 0; i < 5; i++){
+		let ground_y = 31 - i;
+		for(let j = 0; j < grid_size.width; j++) {
+			PS.color(j, ground_y, Toy.groundColor);
+			PS.alpha(j, ground_y, 255);
+		}
+	}
+
+	Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
+	PS.spriteSolidColor (Toy.pet, Toy.petColor );
+	PS.spriteMove(Toy.pet, 16 ,26);
+
+	PS.timerStart(2, petActions);
 	// This is also a good place to display
 	// your game title or a welcome message
 	// in the status line above the grid.
@@ -80,42 +103,58 @@ PS.init = function( system, options ) {
 
 	// Add any other initialization code you need here.
 
-	PS.timerStart(1, () => {
-		let grid_size = PS.gridSize();
-		for (let x = 0; x < grid_size.width; x++){
-			for (let y = 0; y < grid_size.height; y++){
-				PS.color(x, y, PS.COLOR_WHITE);
-			}
-		}
 
-		for (let i in Toy.particles) {
-			let p = Toy.particles[i];
 
-			p.x += p.vx;
-			p.y += p.vy;
-
-			let wind = wind_at(p.x, p.y);
-			p.vx += wind[0];
-			p.vy += wind[1] + 0.00025;
-
-			p.x += p.vx;
-			p.y += p.vy;
-
-			let int_x = Math.floor(p.x);
-			let int_y = Math.floor(p.y);
-
-			if (int_x >= 0 && int_x < grid_size.width && int_y >= 0 && int_y < grid_size.height) {
-				PS.color(int_x, int_y, p.color);
-			}
-		}
-	})
 };
 
-function wind_at(x, y) {
-	return [
-		Math.sin(x) * 0.0025,
-		Math.sin(-x * 2.0 + 0.1) * 0.0025,
-	]
+function petActions() {
+	let petX = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).x;
+	let petY = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).y;
+	if(Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= Toy.petSize/2 &&
+		Math.abs(Toy.foodY - petY) <= Toy.petSize){
+		Toy.petSize += 1;
+		petY = petY - 1;
+		PS.alpha(Toy.foodX, Toy.foodY, 0);
+		Toy.foodX = undefined;
+		Toy.foodY = undefined;
+		PS.spriteDelete(Toy.pet);
+		Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
+		PS.spriteSolidColor (Toy.pet, Toy.petColor );
+		PS.spriteMove(Toy.pet, petX ,petY);
+	}
+	if (Toy.animationTime === 0){
+		if (PS.random(2) === 1){
+			Toy.animationTime = 5;
+			Toy.direction = PS.random(3) - 2;
+			if (petX > PS.gridSize().width - (5 + Toy.petSize)){
+				Toy.direction = -1;
+			}
+			if (petX < 5){
+				Toy.direction = 1;
+			}
+		}
+	}
+	else {
+		if (Toy.animationTime === 5){
+			Toy.y_direction = -1;
+		}
+		if (Toy.animationTime === 3){
+			Toy.y_direction = 1;
+		}
+		if (Toy.animationTime === 1){
+			Toy.y_direction = 0;
+		}
+		PS.spriteMove(Toy.pet, (petX + Toy.direction), (petY + Toy.y_direction));
+		Toy.animationTime -= 1;
+	}
+	if ( Toy.foodX !== undefined && PS.color(Toy.foodX, Toy.foodY + 1, PS.CURRENT) !== Toy.groundColor) {
+		PS.color(Toy.foodX, Toy.foodY + 1, Toy.foodColor);
+		PS.alpha(Toy.foodX, Toy.foodY + 1, 255);
+		PS.color(Toy.foodX, Toy.foodY, PS.COLOR_WHITE);
+		PS.alpha(Toy.foodX, Toy.foodY, 0)
+		Toy.foodY += 1;
+	}
+
 }
 
 /*
@@ -137,15 +176,21 @@ PS.touch = function( x, y, data, options ) {
 	// Add code here for mouse clicks/touches
 	// over a bead.
 
-	Toy.particles.push(
-		{
-			x: x,
-			y: y,
-			vx: 0,
-			vy: 0.01,
-			color: PS.COLOR_BLACK,
-		}
-	);
+	if(Toy.foodY === undefined && x < PS.gridSize().width - 5 && x > 5) {
+		PS.color(x, y, PS.COLOR_BLUE)
+		Toy.foodX = x;
+		Toy.foodY = y;
+	}
+
+	// Toy.particles.push(
+	// 	{
+	// 		x: x,
+	// 		y: y,
+	// 		vx: 0,
+	// 		vy: 0.01,
+	// 		color: PS.COLOR_BLACK,
+	// 	}
+	// );
 
 };
 
