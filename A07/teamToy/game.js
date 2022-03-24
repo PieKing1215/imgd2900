@@ -99,7 +99,7 @@ PS.init = function( system, options ) {
 	// Uncomment the following code line and
 	// change the string parameter as needed.
 
-	// PS.statusText( "Game" );
+	PS.statusText( "Click to feed your buddy." );
 
 	// Add any other initialization code you need here.
 
