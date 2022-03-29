@@ -167,8 +167,14 @@ function tick() {
 
 			Toy.jumpsSinceEat += 1;
 
-			// random x movement in [-1, 1]
+			// random x movement -1, 0, or 1
 			Toy.jumpXDir = PS.random(3) - 2;
+
+			// if food is present, have a higher chance to move towards the food
+			if (isFoodPresent() && PS.random(2) == 1) {
+				let dx = Toy.foodX - (petX + Toy.petSize/2);
+				Toy.jumpXDir = Math.sign(dx);
+			}
 
 			// if the pet is near the edge of the grid, force the direction back towards the middle
 
