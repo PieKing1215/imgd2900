@@ -48,140 +48,173 @@ Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
+// global state variables
 const Toy = {
-	particles: [],
-	animationTime: 0,
-	petColor: 0x7B5725,
-	groundColor: 0x4F9327,
-	foodColor: 0xA8341D,
-	petSize: 1,
-	sinceEat: 0,
-	napTime: 0
-}
+	bgColor: 0xADE4EA, // sky blue
+	petColor: 0x7B5725, // brown
+	groundColor: 0x4F9327, // green
+	foodColor: 0xA8341D, // meaty red
+	petSize: 1, // int, [1, 17]
+	petSprite: undefined, // initialized in PS.init
+	jumpTime: 0, // int, 5 -> 0
+	jumpXDir: 0, // int, [-1, 1]
+	jumpYDir: 0, // int, [-1, 1]
+	jumpsSinceEat: 0, // int, [0,)
+	napTime: 0 // int, 96 -> 0
+};
 
-PS.init = function( system, options ) {
-	// Uncomment the following code line
-	// to verify operation:
+PS.init = function (_system, _options) {
 
-	// PS.debug( "PS.init() called\n" );
+	// we use a big grid size to allow as much growth as possible for the pet
+	PS.gridSize(32, 32);
 
-	// This function should normally begin
-	// with a call to PS.gridSize( x, y )
-	// where x and y are the desired initial
-	// dimensions of the grid.
-	// Call PS.gridSize() FIRST to avoid problems!
-	// The sample call below sets the grid to the
-	// default dimensions (8 x 8).
-	// Uncomment the following code line and change
-	// the x and y parameters as needed.
-
-	PS.gridSize( 32, 32 );
-	PS.gridColor(0xADE4EA);
-
-	PS.audioLoad("fx_pop");
-	PS.audioLoad("snore", { path: "audio/" });
-
-	let grid_size = PS.gridSize();
+	PS.gridColor(Toy.bgColor);
 
 	PS.border(PS.ALL, PS.ALL, 0);
 	PS.alpha(PS.ALL, PS.ALL, 0);
 
-	for (let i = 0; i < 5; i++){
-		let ground_y = 31 - i;
-		for(let j = 0; j < grid_size.width; j++) {
-			PS.color(j, ground_y, Toy.groundColor);
-			PS.alpha(j, ground_y, 255);
+	// fill ground with groundColor
+	let groundThickness = 5;
+	for (let y = 0; y < groundThickness; y++) {
+		let ground_y = 31 - y;
+		for (let x = 0; x < PS.gridSize().width; x++) {
+			PS.color(x, ground_y, Toy.groundColor);
+			PS.alpha(x, ground_y, 255);
 		}
 	}
 
-	Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
-	PS.spriteSolidColor (Toy.pet, Toy.petColor );
-	PS.spriteMove(Toy.pet, 16 ,26);
+	// pet sprite is a solid square with size Toy.petSize
+	Toy.petSprite = PS.spriteSolid(Toy.petSize, Toy.petSize);
+	PS.spriteSolidColor(Toy.petSprite, Toy.petColor);
+	// start the sprite with its bottom on the groud
+	PS.spriteMove(Toy.petSprite, PS.gridSize().width / 2, PS.gridSize().height - groundThickness - 1);
 
-	PS.timerStart(2, petActions);
-	// This is also a good place to display
-	// your game title or a welcome message
-	// in the status line above the grid.
-	// Uncomment the following code line and
-	// change the string parameter as needed.
+	// start calling our tick function
+	PS.timerStart(2, tick);
 
 	PS.statusText("");
 
-	// Add any other initialization code you need here.
+	// load sfx
 
-
-
+	PS.audioLoad("fx_pop");
+	PS.audioLoad("snore", { path: "audio/" });
 };
 
-function petActions() {
-	let petX = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).x;
-	let petY = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).y;
-	if(Toy.napTime == 0 && Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= (Toy.petSize/2 + 1) &&
-		Math.abs(Toy.foodY - (petY + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1)){
-		PS.audioPlay("fx_pop", {volume: 0.5});
-		Toy.petSize += 1;
-		Toy.sinceEat = 0;
-		petY = petY - 1;
+function tick() {
+	// get current position
+	let petX = PS.spriteMove(Toy.petSprite, PS.CURRENT, PS.CURRENT).x;
+	let petY = PS.spriteMove(Toy.petSprite, PS.CURRENT, PS.CURRENT).y;
+
+	// check if food is touching the pet
+	let touchingFood = isFoodPresent() &&
+		Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1) &&
+		Math.abs(Toy.foodY - (petY + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1);
+
+	if (Toy.napTime == 0 && touchingFood) {
+		// eat the food
+
+		PS.audioPlay("fx_pop", { volume: 0.5 });
+
+		// reset food
 		PS.alpha(Toy.foodX, Toy.foodY, 0);
 		Toy.foodX = undefined;
 		Toy.foodY = undefined;
-		PS.spriteDelete(Toy.pet);
-		Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
-		PS.spriteSolidColor (Toy.pet, Toy.petColor );
-		PS.spriteMove(Toy.pet, petX ,petY);
 
+		Toy.petSize += 1;
+		Toy.jumpsSinceEat = 0;
+
+		// shift pet up by 1 since it grows from the top left
+		petY -= 1;
+
+		// regenerate pet sprite with new size
+		PS.spriteDelete(Toy.petSprite);
+		Toy.petSprite = PS.spriteSolid(Toy.petSize, Toy.petSize);
+		PS.spriteSolidColor(Toy.petSprite, Toy.petColor);
+		PS.spriteMove(Toy.petSprite, petX, petY);
+
+		// 1/3 chance of taking a short nap
 		if (PS.random(3) == 1) {
 			Toy.napTime = 96;
 			PS.audioPlay("snore", { path: "audio/" });
 		}
-	} else if (Toy.sinceEat > 10 && Toy.petSize > 1) {
-		Toy.sinceEat = 0;
+	} else if (Toy.jumpsSinceEat > 10 && Toy.petSize > 1) {
+		// shrink over time when not fed
+
+		// reset timer
+		Toy.jumpsSinceEat = 0;
 
 		Toy.petSize -= 1;
-		petY = petY + 1;
-		PS.spriteDelete(Toy.pet);
-		Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
-		PS.spriteSolidColor (Toy.pet, Toy.petColor );
-		PS.spriteMove(Toy.pet, petX ,petY);
-		
+		// shift pet down by 1 since it shrinks from the top left
+		petY += 1;
+
+		// regenerate pet sprite with new size
+		PS.spriteDelete(Toy.petSprite);
+		Toy.petSprite = PS.spriteSolid(Toy.petSize, Toy.petSize);
+		PS.spriteSolidColor(Toy.petSprite, Toy.petColor);
+		PS.spriteMove(Toy.petSprite, petX, petY);
+
+		// clear status (since it could be the "Your buddy is stuffed!" message)
 		PS.statusText("");
 	}
-	if (Toy.animationTime === 0){
-		if (Toy.napTime == 0 && PS.random(2) === 1){
-			Toy.animationTime = 5;
-			Toy.sinceEat += 1;
-			Toy.direction = PS.random(3) - 2;
-			if (petX > PS.gridSize().width - (5 + Toy.petSize)){
-				Toy.direction = -1;
+
+	if (Toy.jumpTime === 0) {
+		// not currently jumping
+
+		// 1/2 chance to start a jump if not napping
+		if (Toy.napTime == 0 && PS.random(2) === 1) {
+			// set animation timer
+			Toy.jumpTime = 5;
+
+			Toy.jumpsSinceEat += 1;
+
+			// random x movement in [-1, 1]
+			Toy.jumpXDir = PS.random(3) - 2;
+
+			// if the pet is near the edge of the grid, force the direction back towards the middle
+
+			if (petX > PS.gridSize().width - (5 + Toy.petSize)) {
+				Toy.jumpXDir = -1;
 			}
-			if (petX < 5){
-				Toy.direction = 1;
+
+			if (petX < 5) {
+				Toy.jumpXDir = 1;
 			}
 		}
+	} else {
+		// currently jumping
+
+		// kinda gross hardcoded animation
+
+		if (Toy.jumpTime === 5) {
+			Toy.jumpYDir = -1;
+		}
+
+		if (Toy.jumpTime === 3) {
+			Toy.jumpYDir = 1;
+		}
+
+		if (Toy.jumpTime === 1) {
+			Toy.jumpYDir = 0;
+		}
+
+		// move the sprite
+		PS.spriteMove(Toy.petSprite, (petX + Toy.jumpXDir), (petY + Toy.jumpYDir));
+
+		// decrement the animation timer
+		Toy.jumpTime -= 1;
 	}
-	else {
-		if (Toy.animationTime === 5){
-			Toy.y_direction = -1;
-		}
-		if (Toy.animationTime === 3){
-			Toy.y_direction = 1;
-		}
-		if (Toy.animationTime === 1){
-			Toy.y_direction = 0;
-		}
-		PS.spriteMove(Toy.pet, (petX + Toy.direction), (petY + Toy.y_direction));
-		Toy.animationTime -= 1;
-	}
-	
-	if ( Toy.foodX !== undefined && PS.color(Toy.foodX, Toy.foodY + 1, PS.CURRENT) !== Toy.groundColor) {
+
+	if (isFoodPresent() && PS.color(Toy.foodX, Toy.foodY + 1, PS.CURRENT) !== Toy.groundColor) {
+		// bead below the food is not the ground
+
 		// clear the old position of the food
 		PS.color(Toy.foodX, Toy.foodY, PS.COLOR_WHITE);
 		PS.alpha(Toy.foodX, Toy.foodY, 0);
-		
+
 		// force redraw the pet sprite (otherwise the two lines above make a hole in the pet)
-		let cur = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT);
-		PS.spriteMove(Toy.pet, cur.x, cur.y-1);
-		PS.spriteMove(Toy.pet, cur.x, cur.y);
+		let cur = PS.spriteMove(Toy.petSprite, PS.CURRENT, PS.CURRENT);
+		PS.spriteMove(Toy.petSprite, cur.x, cur.y - 1);
+		PS.spriteMove(Toy.petSprite, cur.x, cur.y);
 
 		// draw the old position of the food (in front of the pet sprite)
 		Toy.foodY += 1;
@@ -190,24 +223,41 @@ function petActions() {
 	}
 
 	if (Toy.napTime > 0) {
+		// currently napping
+
 		Toy.napTime--;
 
+		// clear all glyphs
 		PS.glyph(PS.ALL, PS.ALL, '');
-		let x = petX + Math.round(Math.sin(Toy.napTime / 3) * 2) + Toy.petSize / 2;
-		let y = petY + ((Toy.napTime / 3) % 8) - 8;
-		if (in_bounds(x, y)) {
+
+		// calculate the position of the 'Z'
+		let zTimeScale = 3;
+		let x = petX + Math.round(Math.sin(Toy.napTime / zTimeScale) * 2) + Toy.petSize / 2;
+		let y = petY + ((Toy.napTime / zTimeScale) % 8) - 8;
+
+		if (inBounds(x, y)) {
+			// this unicode character renders slightly larger than a normal Z in the default font
 			PS.glyph(x, y, '乙');
 		}
-
 	} else {
+		// not currently mapping
+
+		// clear all glyphs
 		PS.glyph(PS.ALL, PS.ALL, '');
 	}
 
 }
 
-function in_bounds(x, y) {
-	return x >= 0 && x < PS.gridSize().width
-		&& y >= 0 && y < PS.gridSize().height;
+/// returns `true` if a piece of food is present on the board, `false` otherwise
+function isFoodPresent() {
+	// foodX and foodY are undefined if no food is present
+	return Toy.foodX !== undefined;
+}
+
+/// returns `true` if the provided point is within the grid, `false` otherwise
+function inBounds(x, y) {
+	return x >= 0 && x < PS.gridSize().width &&
+		y >= 0 && y < PS.gridSize().height;
 }
 
 /*
@@ -220,161 +270,23 @@ This function doesn't have to do anything. Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
-PS.touch = function( x, y, data, options ) {
-	// Uncomment the following code line
-	// to inspect x/y parameters:
+PS.touch = function (x, y, _data, _options) {
+	// drop a piece of food if there isn't already one, and the pet isn't too big
 
-	// PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
-
-	// Add code here for mouse clicks/touches
-	// over a bead.
-
-	if(Toy.foodY === undefined) {
+	if (!isFoodPresent()) {
 		if (Toy.petSize > 16) {
+			// this is cleared later in the shrinking code
 			PS.statusText("Your Buddy is stuffed!");
 		} else {
+			// drop a piece of food
+
+			// clip the x slightly away from the edges of the grid (so it doesn't get stuck)
 			let clipX = Math.min(Math.max(3, x), PS.gridSize().width - 3);
-			PS.color(clipX, y, PS.COLOR_BLUE)
+
+			// spawn the food
+			PS.color(clipX, y, Toy.foodColor);
 			Toy.foodX = clipX;
 			Toy.foodY = y;
 		}
 	}
-
-	// Toy.particles.push(
-	// 	{
-	// 		x: x,
-	// 		y: y,
-	// 		vx: 0,
-	// 		vy: 0.01,
-	// 		color: PS.COLOR_BLACK,
-	// 	}
-	// );
-
 };
-
-/*
-PS.release ( x, y, data, options )
-Called when the left mouse button is released, or when a touch is lifted, over bead(x, y).
-This function doesn't have to do anything. Any value returned is ignored.
-[x : Number] = zero-based x-position (column) of the bead on the grid.
-[y : Number] = zero-based y-position (row) of the bead on the grid.
-[data : *] = The JavaScript value previously associated with bead(x, y) using PS.data(); default = 0.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-*/
-
-PS.release = function( x, y, data, options ) {
-	// Uncomment the following code line to inspect x/y parameters:
-
-	// PS.debug( "PS.release() @ " + x + ", " + y + "\n" );
-
-	// Add code here for when the mouse button/touch is released over a bead.
-};
-
-/*
-PS.enter ( x, y, button, data, options )
-Called when the mouse cursor/touch enters bead(x, y).
-This function doesn't have to do anything. Any value returned is ignored.
-[x : Number] = zero-based x-position (column) of the bead on the grid.
-[y : Number] = zero-based y-position (row) of the bead on the grid.
-[data : *] = The JavaScript value previously associated with bead(x, y) using PS.data(); default = 0.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-*/
-
-PS.enter = function( x, y, data, options ) {
-	// Uncomment the following code line to inspect x/y parameters:
-
-	// PS.debug( "PS.enter() @ " + x + ", " + y + "\n" );
-
-	// Add code here for when the mouse cursor/touch enters a bead.
-};
-
-/*
-PS.exit ( x, y, data, options )
-Called when the mouse cursor/touch exits bead(x, y).
-This function doesn't have to do anything. Any value returned is ignored.
-[x : Number] = zero-based x-position (column) of the bead on the grid.
-[y : Number] = zero-based y-position (row) of the bead on the grid.
-[data : *] = The JavaScript value previously associated with bead(x, y) using PS.data(); default = 0.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-*/
-
-PS.exit = function( x, y, data, options ) {
-	// Uncomment the following code line to inspect x/y parameters:
-
-	// PS.debug( "PS.exit() @ " + x + ", " + y + "\n" );
-
-	// Add code here for when the mouse cursor/touch exits a bead.
-};
-
-/*
-PS.exitGrid ( options )
-Called when the mouse cursor/touch exits the grid perimeter.
-This function doesn't have to do anything. Any value returned is ignored.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-*/
-
-PS.exitGrid = function( options ) {
-	// Uncomment the following code line to verify operation:
-
-	// PS.debug( "PS.exitGrid() called\n" );
-
-	// Add code here for when the mouse cursor/touch moves off the grid.
-};
-
-/*
-PS.keyDown ( key, shift, ctrl, options )
-Called when a key on the keyboard is pressed.
-This function doesn't have to do anything. Any value returned is ignored.
-[key : Number] = ASCII code of the released key, or one of the PS.KEY_* constants documented in the API.
-[shift : Boolean] = true if shift key is held down, else false.
-[ctrl : Boolean] = true if control key is held down, else false.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-*/
-
-PS.keyDown = function( key, shift, ctrl, options ) {
-	// Uncomment the following code line to inspect first three parameters:
-
-	// PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
-
-	// Add code here for when a key is pressed.
-};
-
-/*
-PS.keyUp ( key, shift, ctrl, options )
-Called when a key on the keyboard is released.
-This function doesn't have to do anything. Any value returned is ignored.
-[key : Number] = ASCII code of the released key, or one of the PS.KEY_* constants documented in the API.
-[shift : Boolean] = true if shift key is held down, else false.
-[ctrl : Boolean] = true if control key is held down, else false.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-*/
-
-PS.keyUp = function( key, shift, ctrl, options ) {
-	// Uncomment the following code line to inspect first three parameters:
-
-	// PS.debug( "PS.keyUp(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
-
-	// Add code here for when a key is released.
-};
-
-/*
-PS.input ( sensors, options )
-Called when a supported input device event (other than those above) is detected.
-This function doesn't have to do anything. Any value returned is ignored.
-[sensors : Object] = A JavaScript object with properties indicating sensor status; see API documentation for details.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-NOTE: Currently, only mouse wheel events are reported, and only when the mouse cursor is positioned directly over the grid.
-*/
-
-PS.input = function( sensors, options ) {
-	// Uncomment the following code lines to inspect first parameter:
-
-//	 var device = sensors.wheel; // check for scroll wheel
-//
-//	 if ( device ) {
-//	   PS.debug( "PS.input(): " + device + "\n" );
-//	 }
-
-	// Add code here for when an input event is detected.
-};
-
