@@ -51,7 +51,7 @@ Any value returned is ignored.
 // global state variables
 const Toy = {
 	bgColor: 0xADE4EA, // sky blue
-	petColor: 0x7B5725, // brown
+	petColor: 0x7B5725, // brown by default
 	groundColor: 0x4F9327, // green
 	foodColor: 0xA8341D, // meaty red
 	petSize: 1, // int, [1, 17]
@@ -60,7 +60,8 @@ const Toy = {
 	jumpXDir: 0, // int, [-1, 1]
 	jumpYDir: 0, // int, [-1, 1]
 	jumpsSinceEat: 0, // int, [0,)
-	napTime: 0 // int, 96 -> 0
+	napTime: 0, // int, 96 -> 0
+	newLookTimer: 0, // int, 100 -> 0
 };
 
 PS.init = function (_system, _options) {
@@ -101,6 +102,7 @@ PS.init = function (_system, _options) {
 		PS.audioLoad("jump" + i, { fileTypes: ["wav"], path: "audio/" });
 	}
 	PS.audioLoad("munch", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("color_change", { fileTypes: ["wav"], path: "audio/" });
 };
 
 function tick() {
@@ -126,6 +128,22 @@ function tick() {
 		Toy.petSize += 1;
 		Toy.jumpsSinceEat = 0;
 
+		if (Toy.petSize > 16) {
+			// if pet grows large enough, change it to a new random color
+
+			PS.audioPlay("color_change", { fileTypes: ["wav"], path: "audio/" });
+
+			// random color
+			Toy.petColor = PS.makeRGB(PS.random(255), PS.random(255), PS.random(255));
+
+			// shrink by 14 sizes
+			Toy.jumpsSinceEat = 14 * 10;
+
+			Toy.newLookTimer = 100;
+
+			PS.statusText("Your buddy got a new look!");
+		}
+
 		// shift pet up by 1 since it grows from the top left
 		petY -= 1;
 
@@ -143,8 +161,9 @@ function tick() {
 	} else if (Toy.jumpsSinceEat > 10 && Toy.petSize > 1) {
 		// shrink over time when not fed
 
-		// reset timer
-		Toy.jumpsSinceEat = 0;
+		// shrink once per 10 jumps
+		// (doing -= 10 instead of = 0 means elsewhere can set jumpsSinceEat to like 100 or something to automatically shrink by several sizes)
+		Toy.jumpsSinceEat -= 10;
 
 		Toy.petSize -= 1;
 		// shift pet down by 1 since it shrinks from the top left
@@ -155,9 +174,14 @@ function tick() {
 		Toy.petSprite = PS.spriteSolid(Toy.petSize, Toy.petSize);
 		PS.spriteSolidColor(Toy.petSprite, Toy.petColor);
 		PS.spriteMove(Toy.petSprite, petX, petY);
+	}
 
-		// clear status (since it could be the "Your buddy is stuffed!" message)
-		PS.statusText("");
+	if (Toy.newLookTimer > 0) {
+		Toy.newLookTimer -= 1;
+		if (Toy.newLookTimer == 0) {
+			// clear status (since it could be the "Your buddy got a new look!" message)
+			PS.statusText("");
+		}
 	}
 
 	if (Toy.jumpTime === 0) {
@@ -282,22 +306,17 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.touch = function (x, y, _data, _options) {
-	// drop a piece of food if there isn't already one, and the pet isn't too big
+	// drop a piece of food if there isn't already one
 
 	if (!isFoodPresent()) {
-		if (Toy.petSize > 16) {
-			// this is cleared later in the shrinking code
-			PS.statusText("Your Buddy is stuffed!");
-		} else {
-			// drop a piece of food
+		// drop a piece of food
 
-			// clip the x slightly away from the edges of the grid (so it doesn't get stuck)
-			let clipX = Math.min(Math.max(3, x), PS.gridSize().width - 3);
+		// clip the x slightly away from the edges of the grid (so it doesn't get stuck)
+		let clipX = Math.min(Math.max(3, x), PS.gridSize().width - 3);
 
-			// spawn the food
-			PS.color(clipX, y, Toy.foodColor);
-			Toy.foodX = clipX;
-			Toy.foodY = y;
-		}
+		// spawn the food
+		PS.color(clipX, y, Toy.foodColor);
+		Toy.foodX = clipX;
+		Toy.foodY = y;
 	}
 };
