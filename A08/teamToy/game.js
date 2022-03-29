@@ -55,7 +55,8 @@ const Toy = {
 	groundColor: 0x4F9327,
 	foodColor: 0xA8341D,
 	petSize: 1,
-	sinceEat: 0
+	sinceEat: 0,
+	napTime: 0
 }
 
 PS.init = function( system, options ) {
@@ -78,6 +79,7 @@ PS.init = function( system, options ) {
 	PS.gridColor(0xADE4EA);
 
 	PS.audioLoad("fx_pop");
+	PS.audioLoad("snore", { path: "audio/" });
 
 	let grid_size = PS.gridSize();
 
@@ -114,7 +116,7 @@ PS.init = function( system, options ) {
 function petActions() {
 	let petX = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).x;
 	let petY = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT).y;
-	if(Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= (Toy.petSize/2 + 1) &&
+	if(Toy.napTime == 0 && Toy.foodX !== undefined && Math.abs(Toy.foodX - (petX + (Toy.petSize / 2))) <= (Toy.petSize/2 + 1) &&
 		Math.abs(Toy.foodY - (petY + (Toy.petSize / 2))) <= (Toy.petSize / 2 + 1)){
 		PS.audioPlay("fx_pop", {volume: 0.5});
 		Toy.petSize += 1;
@@ -127,6 +129,11 @@ function petActions() {
 		Toy.pet = PS.spriteSolid(Toy.petSize, Toy.petSize);
 		PS.spriteSolidColor (Toy.pet, Toy.petColor );
 		PS.spriteMove(Toy.pet, petX ,petY);
+
+		if (PS.random(3) == 1) {
+			Toy.napTime = 96;
+			PS.audioPlay("snore", { path: "audio/" });
+		}
 	} else if (Toy.sinceEat > 10 && Toy.petSize > 1) {
 		Toy.sinceEat = 0;
 
@@ -140,7 +147,7 @@ function petActions() {
 		PS.statusText("");
 	}
 	if (Toy.animationTime === 0){
-		if (PS.random(2) === 1){
+		if (Toy.napTime == 0 && PS.random(2) === 1){
 			Toy.animationTime = 5;
 			Toy.sinceEat += 1;
 			Toy.direction = PS.random(3) - 2;
@@ -165,14 +172,42 @@ function petActions() {
 		PS.spriteMove(Toy.pet, (petX + Toy.direction), (petY + Toy.y_direction));
 		Toy.animationTime -= 1;
 	}
+	
 	if ( Toy.foodX !== undefined && PS.color(Toy.foodX, Toy.foodY + 1, PS.CURRENT) !== Toy.groundColor) {
-		PS.color(Toy.foodX, Toy.foodY + 1, Toy.foodColor);
-		PS.alpha(Toy.foodX, Toy.foodY + 1, 255);
+		// clear the old position of the food
 		PS.color(Toy.foodX, Toy.foodY, PS.COLOR_WHITE);
-		PS.alpha(Toy.foodX, Toy.foodY, 0)
+		PS.alpha(Toy.foodX, Toy.foodY, 0);
+		
+		// force redraw the pet sprite (otherwise the two lines above make a hole in the pet)
+		let cur = PS.spriteMove(Toy.pet, PS.CURRENT, PS.CURRENT);
+		PS.spriteMove(Toy.pet, cur.x, cur.y-1);
+		PS.spriteMove(Toy.pet, cur.x, cur.y);
+
+		// draw the old position of the food (in front of the pet sprite)
 		Toy.foodY += 1;
+		PS.color(Toy.foodX, Toy.foodY, Toy.foodColor);
+		PS.alpha(Toy.foodX, Toy.foodY, 255);
 	}
 
+	if (Toy.napTime > 0) {
+		Toy.napTime--;
+
+		PS.glyph(PS.ALL, PS.ALL, '');
+		let x = petX + Math.round(Math.sin(Toy.napTime / 3) * 2) + Toy.petSize / 2;
+		let y = petY + ((Toy.napTime / 3) % 8) - 8;
+		if (in_bounds(x, y)) {
+			PS.glyph(x, y, '乙');
+		}
+
+	} else {
+		PS.glyph(PS.ALL, PS.ALL, '');
+	}
+
+}
+
+function in_bounds(x, y) {
+	return x >= 0 && x < PS.gridSize().width
+		&& y >= 0 && y < PS.gridSize().height;
 }
 
 /*
