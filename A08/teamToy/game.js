@@ -96,8 +96,11 @@ PS.init = function (_system, _options) {
 
 	// load sfx
 
-	PS.audioLoad("fx_pop");
 	PS.audioLoad("snore", { path: "audio/" });
+	for (let i = 0; i <= 3; i++) {
+		PS.audioLoad("jump" + i, { fileTypes: ["wav"], path: "audio/" });
+	}
+	PS.audioLoad("munch", { fileTypes: ["wav"], path: "audio/" });
 };
 
 function tick() {
@@ -113,7 +116,7 @@ function tick() {
 	if (Toy.napTime == 0 && touchingFood) {
 		// eat the food
 
-		PS.audioPlay("fx_pop", { volume: 0.5 });
+		PS.audioPlay("munch", { fileTypes: ["wav"], path: "audio/" });
 
 		// reset food
 		PS.alpha(Toy.foodX, Toy.foodY, 0);
@@ -161,7 +164,7 @@ function tick() {
 		// not currently jumping
 
 		// 1/2 chance to start a jump if not napping
-		if (Toy.napTime == 0 && PS.random(2) === 1) {
+		if (Toy.napTime == 0 && PS.random(3) === 1) {
 			// set animation timer
 			Toy.jumpTime = 5;
 
@@ -185,6 +188,8 @@ function tick() {
 			if (petX < 5) {
 				Toy.jumpXDir = 1;
 			}
+
+			PS.audioPlay("jump" + (PS.random(4) - 1), { fileTypes: ["wav"], path: "audio/", volume: 0.05 + PS.random(4) * 0.025});
 		}
 	} else {
 		// currently jumping
