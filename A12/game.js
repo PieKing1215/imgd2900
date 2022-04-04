@@ -39,7 +39,9 @@ If you don't use JSHint (or are using it with a configuration file), you can saf
 "use strict"; // Do NOT remove this directive!
 
 function parseMap(rawMap) {
+	// ok to not clone because of the way this function is used (if we cloned, the original would be discarded anyway)
 	let newMap = rawMap;
+	
 	// for each layer, convert from human readable version to an array of chars
 	// remove every other character (spacing), and convert the resulting string into a char array
 	// (the regex here just removes every other char)
