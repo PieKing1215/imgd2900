@@ -312,6 +312,36 @@ const MAP_EGG_1 = reformatMap({
 const MAP_EGG_2 = reformatMap({
 	size: { width: 19, height: 19 },
 	theme: { mainColor: 0x550068 },
+	status: "???",
+	musicTrack: -1,
+	layers: [
+		`\
+                                      \
+                                      \
+                                      \
+                                      \
+                                      \
+                                      \
+                                      \
+  X X X X X X X X X X X X X X X X X   \
+  X                               X   \
+  X   s                       G   X   \
+  X                               X   \
+  X X X X X X X X X X X X X X X X X   \
+                                      \
+                                      \
+                                      \
+                                      \
+                                      \
+                                      \
+                                      `
+	],
+	getNextMap: () => MAP_EGG_END
+});
+
+const MAP_EGG_END = reformatMap({
+	size: { width: 19, height: 19 },
+	theme: { mainColor: 0x550068 },
 	status: "",
 	musicTrack: -1,
 	layers: [
@@ -514,6 +544,7 @@ PS.init = function (system, options) {
 	PS.audioLoad("ASCEND", { fileTypes: ["wav"], path: "audio/" });
 	PS.audioLoad("ASCENDED", { fileTypes: ["wav"], path: "audio/" });
 	PS.audioLoad("HERE", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("HERE2", { fileTypes: ["wav"], path: "audio/" });
 
 	PS.audioLoad("laballrinth_a", {
 		fileTypes: ["wav"], path: "audio/", onLoad: (ctx) => {
@@ -709,7 +740,7 @@ function tick() {
 				G.ball.vel.x = 0;
 				G.ball.vel.y = 0;
 
-				if (G.map === MAP_EGG_2) {
+				if (G.map === MAP_EGG_END) {
 					// start animation
 					G.winTimer = 90;
 
@@ -722,6 +753,8 @@ function tick() {
 
 					if (G.map === MAP_EGG_1) {
 						PS.audioPlay("HERE", { fileTypes: ["wav"], path: "audio/", volume: 0.5 });
+					} else if (G.map === MAP_EGG_2) {
+						PS.audioPlay("HERE2", { fileTypes: ["wav"], path: "audio/", volume: 0.5 });
 					} else {
 						PS.statusText("Level complete!");
 						PS.audioPlay("stageComplete", { fileTypes: ["wav"], path: "audio/", volume: 0.2 });
