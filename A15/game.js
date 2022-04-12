@@ -422,6 +422,8 @@ const G = {
 	ascendTimerMax: 60 * 4,
 
 	ascended: false,
+
+	startTime: null,
 };
 
 /// Load a map
@@ -492,8 +494,18 @@ G.loadStage = (map) => {
 	const padding = G.control.scheme == 0 ? 1 : 0;
 	PS.gridSize(map.size.width + padding * 2, map.size.height + padding * 2);
 
-	PS.statusText(map.status);
-	PS.statusColor(PS.COLOR_WHITE);
+	if (map === MAP_END) {
+		// display play time at the end
+
+		let millis = new Date().getTime() - G.startTime;
+		let seconds = millis / 1000.0;
+		let minutes = Math.floor(seconds / 60.0);
+
+		PS.statusText(minutes + "m " + (seconds % 60.0).toFixed(2) + "s");
+	} else {
+		PS.statusText(map.status);
+	}
+	PS.statusColor(blendColors(PS.COLOR_WHITE, G.map.theme.mainColor, 0.25));
 
 	// reset board colors
 	PS.borderColor(PS.ALL, PS.ALL, PS.COLOR_WHITE);
@@ -585,6 +597,8 @@ PS.init = function (system, options) {
 
 	// (grid size and color stuff is set up in loadStage)
 	G.loadStage(MAP_TUT);
+
+	G.startTime = new Date().getTime();
 
 	PS.timerStart(1, tick);
 	tick();
@@ -755,6 +769,8 @@ function tick() {
 				// stop the ball
 				G.ball.vel.x = 0;
 				G.ball.vel.y = 0;
+				G.control.tilt.x = 0;
+				G.control.tilt.y = 0;
 
 				if (G.map === MAP_EGG_END) {
 					// start animation (slightly longer so you can see the effects)
