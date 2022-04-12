@@ -567,10 +567,12 @@ PS.init = function (system, options) {
 		}
 	});
 
-	PS.statusText("Use arrow keys to tilt.");
 
 	// (grid size and visuals are set up in loadStage)
 	G.loadStage(MAP_TUT);
+	PS.gridColor(0x303030);
+	PS.gridFade(30);
+	PS.gridColor(PS.COLOR_WHITE);
 
 	PS.timerStart(1, tick);
 	tick();
