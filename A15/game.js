@@ -426,13 +426,16 @@ const G = {
 
 /// Load a map
 G.loadStage = (map) => {
-	const prevMusic = G.map == null ? -1 : G.map.musicTrack;
-	const newMusic = map.musicTrack;
+	// save some stuff from the old map
+	const prevMusic = G.map === null ? -1 : G.map.musicTrack;
+	const prevColor = G.map === null ? 0x303030 : blendColors(PS.COLOR_BLACK, G.map.theme.mainColor, 0.5);
 
 	G.map = map;
 
 	// update music
+	const newMusic = map.musicTrack;
 	if (newMusic !== prevMusic && G.audio.started) {
+		// fade out old music
 		switch (prevMusic) {
 			case 0:
 				PS.audioFade(G.audio.musicChannelA, PS.CURRENT, 0.0);
@@ -448,6 +451,7 @@ G.loadStage = (map) => {
 				break;
 		}
 
+		// fade in new music
 		switch (newMusic) {
 			case 0:
 				PS.audioFade(G.audio.musicChannelA, PS.CURRENT, G.musicVolume);
@@ -459,6 +463,7 @@ G.loadStage = (map) => {
 				PS.audioFade(G.audio.musicChannelC, PS.CURRENT, G.musicVolume);
 				break;
 			case 3:
+				// slowly auto fade out the end music after it fades in
 				PS.audioFade(G.audio.musicChannelD, PS.CURRENT, G.musicVolume, 1000, () => {
 					PS.audioFade(G.audio.musicChannelD, PS.CURRENT, 0.0, 15000);
 				});
@@ -467,8 +472,7 @@ G.loadStage = (map) => {
 	}
 
 	// put ball at start
-	const startPos = findStart(map);
-	G.ball.pos = startPos;
+	G.ball.pos = findStart(map);
 
 	// make ball flash for a bit
 	G.flashTime = 45;
@@ -489,11 +493,16 @@ G.loadStage = (map) => {
 	PS.gridSize(map.size.width + padding * 2, map.size.height + padding * 2);
 
 	PS.statusText(map.status);
+	PS.statusColor(PS.COLOR_WHITE);
 
 	// reset board colors
 	PS.borderColor(PS.ALL, PS.ALL, PS.COLOR_WHITE);
 	PS.bgColor(PS.ALL, PS.ALL, PS.COLOR_WHITE);
 	PS.border(PS.ALL, PS.ALL, 0);
+
+	PS.gridColor(prevColor);
+	PS.gridFade(30);
+	PS.gridColor(blendColors(PS.COLOR_BLACK, G.map.theme.mainColor, 0.5));
 
 	// play transition sound effect
 	PS.audioPlay("loadLevel", { fileTypes: ["wav"], path: "audio/", volume: 0.3 });
@@ -552,6 +561,7 @@ PS.init = function (system, options) {
 	PS.audioLoad("HERE", { fileTypes: ["wav"], path: "audio/" });
 	PS.audioLoad("HERE2", { fileTypes: ["wav"], path: "audio/" });
 
+	// need to save channels of music since we fade them elsewhere
 	PS.audioLoad("laballrinth_a", {
 		fileTypes: ["wav"], path: "audio/", onLoad: (ctx) => {
 			G.audio.musicChannelA = ctx.channel;
@@ -573,12 +583,8 @@ PS.init = function (system, options) {
 		}
 	});
 
-
-	// (grid size and visuals are set up in loadStage)
+	// (grid size and color stuff is set up in loadStage)
 	G.loadStage(MAP_TUT);
-	PS.gridColor(0x303030);
-	PS.gridFade(30);
-	PS.gridColor(PS.COLOR_WHITE);
 
 	PS.timerStart(1, tick);
 	tick();
@@ -586,6 +592,8 @@ PS.init = function (system, options) {
 
 function tick() {
 
+	// wait for all of the audio to be loaded before playing them all at the same time
+	// need to do this for them to be synced
 	if (!G.audio.started) {
 		if (G.audio.musicChannelA !== null && G.audio.musicChannelB !== null && G.audio.musicChannelC !== null && G.audio.musicChannelD !== null) {
 			PS.audioPlayChannel(G.audio.musicChannelA, { loop: true, volume: G.musicVolume });
@@ -704,7 +712,7 @@ function tick() {
 				G.ball.vel.x *= -0.5;
 				G.map.layers[G.ball.pos.layer][indexXOnly] = '?';
 
-				doSecretBlockBreak();
+				onSecretBlockBreak();
 			} else {
 				G.ball.pos.x = newBallX;
 			}
@@ -720,7 +728,7 @@ function tick() {
 				G.ball.vel.y *= -0.5;
 				G.map.layers[G.ball.pos.layer][indexYOnly] = '?';
 
-				doSecretBlockBreak();
+				onSecretBlockBreak();
 			} else {
 				G.ball.pos.y = newBallY;
 			}
@@ -749,7 +757,7 @@ function tick() {
 				G.ball.vel.y = 0;
 
 				if (G.map === MAP_EGG_END) {
-					// start animation
+					// start animation (slightly longer so you can see the effects)
 					G.winTimer = 90;
 
 					G.ascended = true;
@@ -778,10 +786,11 @@ function tick() {
 	render();
 }
 
-function doSecretBlockBreak() {
+function onSecretBlockBreak() {
 	// play secret sound effect
 	PS.audioPlay("secret", { fileTypes: ["wav"], path: "audio/", volume: 0.5 });
 
+	// fade out music
 	switch (G.map.musicTrack) {
 		case 0:
 			PS.audioFade(G.audio.musicChannelA, PS.CURRENT, 0.0);
@@ -799,14 +808,19 @@ function doSecretBlockBreak() {
 }
 
 function ascend() {
-	G.ascendTimer = G.ascendTimerMax;
+	// stop the ball
 	G.ball.vel.x = 0;
 	G.ball.vel.y = 0;
 	G.control.tilt.x = 0;
 	G.control.tilt.y = 0;
+
+	// start ascension animation
+	G.ascendTimer = G.ascendTimerMax;
+
 	PS.audioPlay("ASCEND", { fileTypes: ["wav"], path: "audio/" });
 }
 
+/// Redraws the current game state
 function render() {
 	// draw the map on the lower plane
 	PS.gridPlane(1);
@@ -852,6 +866,7 @@ function render() {
 				}
 			}
 
+			// level transition dissolve effect
 			if (G.levelTransitionTimer > 0 && Math.random() > 0.25) continue;
 
 			// draw tile depending on type
@@ -868,15 +883,16 @@ function render() {
 				PS.radius(x, y, 0);
 				PS.color(x, y, blendColors(G.winTimer !== null ? 0x015100 : G.map.theme.mainColor, PS.COLOR_BLACK, 0.1));
 			} else if (tile === '?') {
-				// wall tile
+				// secret warp
 
+				// rainbow color
 				const time = new Date().getTime();
-
 				const rgb = hsvToRgb((time / 1500.0) % 1.0, 1.0, 1.0);
+				PS.color(x, y, PS.makeRGB(rgb[0], rgb[1], rgb[2]));
 
+				// pulsing size/radius
 				PS.scale(x, y, (Math.sin(time / 1000 * Math.PI) + 1.0) / 2.0 * 20 + 80);
 				PS.radius(x, y, (Math.sin(time / 1200 * Math.PI) + 1.0) / 2.0 * 20 + 30);
-				PS.color(x, y, PS.makeRGB(rgb[0], rgb[1], rgb[2]));
 			} else if (tile === 'G') {
 				// goal tile
 
@@ -908,10 +924,9 @@ function render() {
 			PS.radius(ballX + ofsX, ballY + ofsY, 50);
 
 			if (G.ascended) {
+				// use rainbow color if ascended
 				const time = new Date().getTime();
-
 				const rgb = hsvToRgb((time / 10000.0) % 1.0, 1.0, 1.0);
-
 				PS.color(ballX + ofsX, ballY + ofsY, PS.makeRGB(rgb[0], rgb[1], rgb[2]));
 			} else {
 				PS.color(ballX + ofsX, ballY + ofsY, 0x0080ff);
@@ -965,18 +980,21 @@ function render() {
 
 				// blend to black depending on the dot product
 				const overlayColor = blendColors(origColor, PS.COLOR_BLACK, Math.min(Math.max(dot / 0.05 + 0.1, 0.0), 1.0));
-
-				// fill the bead
+				// tint the color of the "solid" part of the bead
 				PS.color(x + ofsX, y + ofsY, overlayColor);
-				PS.bgColor(x + ofsX, y + ofsY, PS.COLOR_BLACK);
-				PS.bgAlpha(x + ofsX, y + ofsY, Math.min(Math.max(dot / 0.05 + 0.1, 0.0), 1.0) * 255);
+
+				// also set the background color of the bead
+				PS.bgColor(x + ofsX, y + ofsY, blendColors(PS.COLOR_WHITE, PS.COLOR_BLACK, Math.min(Math.max(dot / 0.05 + 0.1, 0.0), 1.0)));
+				PS.bgAlpha(x + ofsX, y + ofsY, 255);
 			}
 		}
 
-		for (let x = 0; x < PS.gridSize().width; x++) {
-			for (let y = 0; y < PS.gridSize().height; y++) {
-				if (G.ascendTimer !== null) {
-					// G.holeAnimationTimer does G.holeAnimationTimerMax -> 0.0 -> -G.holeAnimationTimerMax
+		// draw ascension rainbow mask effect
+		// we do this last since we want it to cover the controls (unlike the hole effect)
+		if (G.ascendTimer !== null) {
+			for (let x = 0; x < PS.gridSize().width; x++) {
+				for (let y = 0; y < PS.gridSize().height; y++) {
+					// G.ascendTimer does G.ascendTimerMax -> 0.0 -> -G.ascendTimerMax
 
 					// map to 1.0 -> 0.0 -> 1.0
 					const thru = Math.abs(G.ascendTimer) / G.ascendTimerMax;
@@ -993,8 +1011,8 @@ function render() {
 					// mostly square mask with a bit of manhattan distance sprinkled in to round the edges (looks better than using a circle)
 					let dst = dx * dx + dy * dy;
 					if (dst < distance * distance) {
+						// rainbow colors with waves going outwards or inwards depending on the phase of the timer
 						const time = new Date().getTime() - dst * G.ascendTimer / 10;
-
 						const rgb = hsvToRgb((time / 1500.0) % 1.0, 1.0, 1.0);
 
 						PS.scale(x, y, 100);
