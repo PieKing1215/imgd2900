@@ -38,6 +38,12 @@ If you don't use JSHint (or are using it with a configuration file), you can saf
 
 "use strict"; // Do NOT remove this directive!
 
+// =================================================================================================
+
+// Fonts used in cover.png:
+// Mayon Exquisite by eyecone (CC BY-NC-ND): https://www.fontspace.com/mayon-exquisite-font-f30365
+// Deadender by Pixel Kitchen (public domain): https://www.fontspace.com/deadender-font-f34510
+
 /// Converts a map from the raw human-readable version to a more code-friendly version (basically turn the grid string into a char array)
 function reformatMap(map) {
 	// ok to not clone because of the way this function is used (if we cloned, the original would be discarded anyway)
