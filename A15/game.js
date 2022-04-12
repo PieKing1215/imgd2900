@@ -89,13 +89,13 @@ const MAP_ATTRACTOR = reformatMap({
 	layers: [
 		`\
 X X X X X X X X X X X X X X X X X X X\
-X       s                           X\
+X                                   X\
 X                                   X\
 X                                   X\
 X                                   X\
 X                                   X\
 X           X           X           X\
-X             X       X             X\
+X             X   s   X             X\
 X               X X X               X\
 X               X G X               X\
 X               X   X               X\
