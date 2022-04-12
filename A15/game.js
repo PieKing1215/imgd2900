@@ -55,11 +55,13 @@ function reformatMap(map) {
 // s = ball spawn
 // G = goal (go to next level, determined by `getNextMap`)
 // O = hole (teleports ball to first different layer that has a hole at the same position)
+// # = breakable wall
 
 const MAP_TUT = reformatMap({
 	size: { width: 13, height: 13 },
 	theme: { mainColor: 0x6B5700 },
 	status: "Use arrow keys to tilt.",
+	musicTrack: 0,
 	layers: [
 		`\
 X X X X X X X X X X X X X\
@@ -83,6 +85,7 @@ const MAP_ATTRACTOR = reformatMap({
 	size: { width: 19, height: 19 },
 	theme: { mainColor: 0x6B5700 },
 	status: "Level 2",
+	musicTrack: 0,
 	layers: [
 		`\
 X X X X X X X X X X X X X X X X X X X\
@@ -112,6 +115,7 @@ const MAP_3 = reformatMap({
 	size: { width: 11, height: 11 },
 	theme: { mainColor: 0x6D3600 },
 	status: "Level 3",
+	musicTrack: 1,
 	layers: [
 		`\
 X X X X X X X X X X X\
@@ -145,6 +149,7 @@ const MAP_4 = reformatMap({
 	size: { width: 9, height: 11 },
 	theme: { mainColor: 0x6D3600 },
 	status: "Level 4",
+	musicTrack: 1,
 	layers: [
 		`\
 X X X X X X X X X\
@@ -160,7 +165,7 @@ X       G X X O X\
 X X X X X X X X X`,
 		`\
 X X X X X X X X X\
-X           X X X\
+X           X # X\
 X X X   X       X\
 X O X     X X   X\
 X   X X     X   X\
@@ -178,6 +183,7 @@ const MAP_5 = reformatMap({
 	size: { width: 14, height: 14 },
 	theme: { mainColor: 0x700000 },
 	status: "Level 5",
+	musicTrack: 2,
 	layers: [
 		`\
 X X X X X X X X X X X X X X\
@@ -217,6 +223,7 @@ const MAP_6 = reformatMap({
 	size: { width: 15, height: 15 },
 	theme: { mainColor: 0x700000 },
 	status: "Level 6",
+	musicTrack: 2,
 	layers: [
 		`\
 X X X X X X X X X X X X X X X\
@@ -258,6 +265,7 @@ const MAP_END = reformatMap({
 	size: { width: 16, height: 7 },
 	theme: { mainColor: 0x4A8423 },
 	status: "",
+	musicTrack: 3,
 	layers: [
 		`\
 X X X X X X X X X X X X X X X X\
@@ -269,6 +277,66 @@ X       X   X X   X     X X s X\
 X X X X X X X X X X X X X X X X`
 	],
 	getNextMap: () => null
+});
+
+const MAP_EGG_1 = reformatMap({
+	size: { width: 19, height: 19 },
+	theme: { mainColor: 0x550068 },
+	status: "???",
+	musicTrack: -1,
+	layers: [
+		`\
+                                      \
+                                      \
+             X X X X X                \
+             X       X                \
+             X   s   X                \
+             X       X                \
+             X       X                \
+             X       X                \
+             X       X                \
+             X       X                \
+             X       X                \
+             X       X                \
+             X       X                \
+             X   G   X                \
+             X       X                \
+             X X X X X                \
+                                      \
+                                      \
+                                      `
+	],
+	getNextMap: () => MAP_EGG_2
+});
+
+const MAP_EGG_2 = reformatMap({
+	size: { width: 19, height: 19 },
+	theme: { mainColor: 0x550068 },
+	status: "",
+	musicTrack: -1,
+	layers: [
+		`\
+X X X X X X X X X X X X X X X X X X X\
+X                                   X\
+X               X X X               X\
+X             X       X             X\
+X           X           X           X\
+X           X           X           X\
+X           X           X           X\
+X           X           X           X\
+X             X X X X X             X\
+X                                   X\
+X                 G                 X\
+X                                   X\
+X                                   X\
+X                                   X\
+X                                   X\
+X                                   X\
+X                 s                 X\
+X                                   X\
+X X X X X X X X X X X X X X X X X X X`
+	],
+	getNextMap: () => MAP_5
 });
 
 /// Game state
@@ -299,20 +367,77 @@ const G = {
 	/// `null` if animation is not happening
 	winTimer: null,
 
+	levelTransitionTimer: 15,
+
 	/// number of frames to flash the ball for
 	flashTime: 0,
+
+	musicVolume: 0.5,
+
+	audio: {
+		started: false,
+		musicChannelA: null,
+		musicChannelB: null,
+		musicChannelC: null,
+		musicChannelD: null,
+	},
+
+	ascendTimer: null,
+	ascendTimerMax: 60 * 4,
+
+	ascended: false,
 };
 
 /// Load a map
 G.loadStage = (map) => {
+	const prevMusic = G.map == null ? -1 : G.map.musicTrack;
+	const newMusic = map.musicTrack;
+
 	G.map = map;
+
+	// update music
+	if (newMusic !== prevMusic && G.audio.started) {
+		switch (prevMusic) {
+			case 0:
+				PS.audioFade(G.audio.musicChannelA, PS.CURRENT, 0.0);
+				break;
+			case 1:
+				PS.audioFade(G.audio.musicChannelB, PS.CURRENT, 0.0);
+				break;
+			case 2:
+				PS.audioFade(G.audio.musicChannelC, PS.CURRENT, 0.0);
+				break;
+			case 3:
+				PS.audioFade(G.audio.musicChannelD, PS.CURRENT, 0.0);
+				break;
+		}
+
+		switch (newMusic) {
+			case 0:
+				PS.audioFade(G.audio.musicChannelA, PS.CURRENT, G.musicVolume);
+				break;
+			case 1:
+				PS.audioFade(G.audio.musicChannelB, PS.CURRENT, G.musicVolume);
+				break;
+			case 2:
+				PS.audioFade(G.audio.musicChannelC, PS.CURRENT, G.musicVolume);
+				break;
+			case 3:
+				PS.audioFade(G.audio.musicChannelD, PS.CURRENT, G.musicVolume, 1000, () => {
+					PS.audioFade(G.audio.musicChannelD, PS.CURRENT, 0.0, 15000);
+				});
+				break;
+		}
+	}
 
 	// put ball at start
 	const startPos = findStart(map);
 	G.ball.pos = startPos;
 
 	// make ball flash for a bit
-	G.flashTime = 30;
+	G.flashTime = 45;
+
+	G.levelTransitionTimer = 15;
 
 	// reset controls
 	G.control.left = false;
@@ -333,6 +458,9 @@ G.loadStage = (map) => {
 	PS.borderColor(PS.ALL, PS.ALL, PS.COLOR_WHITE);
 	PS.bgColor(PS.ALL, PS.ALL, PS.COLOR_WHITE);
 	PS.border(PS.ALL, PS.ALL, 0);
+
+	// play transition sound effect
+	PS.audioPlay("loadLevel", { fileTypes: ["wav"], path: "audio/", volume: 0.3 });
 
 	// draw a frame to apply the changes
 	render();
@@ -381,6 +509,32 @@ PS.init = function (system, options) {
 	// load sfx
 	PS.audioLoad("hole", { fileTypes: ["wav"], path: "audio/" });
 	PS.audioLoad("stageComplete", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("loadLevel", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("secret", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("ASCEND", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("ASCENDED", { fileTypes: ["wav"], path: "audio/" });
+	PS.audioLoad("HERE", { fileTypes: ["wav"], path: "audio/" });
+
+	PS.audioLoad("laballrinth_a", {
+		fileTypes: ["wav"], path: "audio/", onLoad: (ctx) => {
+			G.audio.musicChannelA = ctx.channel;
+		}
+	});
+	PS.audioLoad("laballrinth_b", {
+		fileTypes: ["wav"], path: "audio/", onLoad: (ctx) => {
+			G.audio.musicChannelB = ctx.channel;
+		}
+	});
+	PS.audioLoad("laballrinth_c", {
+		fileTypes: ["wav"], path: "audio/", onLoad: (ctx) => {
+			G.audio.musicChannelC = ctx.channel;
+		}
+	});
+	PS.audioLoad("laballrinth_d", {
+		fileTypes: ["wav"], path: "audio/", onLoad: (ctx) => {
+			G.audio.musicChannelD = ctx.channel;
+		}
+	});
 
 	PS.statusText("Use arrow keys to tilt.");
 
@@ -392,6 +546,16 @@ PS.init = function (system, options) {
 };
 
 function tick() {
+
+	if (!G.audio.started) {
+		if (G.audio.musicChannelA !== null && G.audio.musicChannelB !== null && G.audio.musicChannelC !== null && G.audio.musicChannelD !== null) {
+			PS.audioPlayChannel(G.audio.musicChannelA, { loop: true, volume: G.musicVolume });
+			PS.audioPlayChannel(G.audio.musicChannelB, { loop: true, volume: 0.0, });
+			PS.audioPlayChannel(G.audio.musicChannelC, { loop: true, volume: 0.0, });
+			PS.audioPlayChannel(G.audio.musicChannelD, { loop: true, volume: 0.0, });
+			G.audio.started = true;
+		}
+	}
 
 	if (G.holeAnimationTimer !== null) {
 		// do hole animation
@@ -420,11 +584,30 @@ function tick() {
 		} else {
 			G.winTimer -= 1;
 		}
+	} else if (G.ascendTimer !== null) {
+		// do ascend animation
+
+		if (G.ascendTimer === 0) {
+			G.loadStage(MAP_EGG_1);
+		}
+
+		if (G.ascendTimer <= -G.ascendTimerMax) {
+			G.ascendTimer = null;
+		} else if (G.ascendTimer < 0) {
+			G.ascendTimer -= 2;
+		} else {
+			G.ascendTimer -= 1;
+		}
 	} else {
 
 		// update ball flash timer
 		if (G.flashTime > 0) {
 			G.flashTime -= 1;
+		}
+
+		// update level transition timer
+		if (G.levelTransitionTimer > 0) {
+			G.levelTransitionTimer -= 1;
 		}
 
 		if (G.control.scheme === 0) {
@@ -476,8 +659,13 @@ function tick() {
 			const indexXOnly = Math.floor(newBallX) + Math.floor(G.ball.pos.y) * G.map.size.width;
 			const tileXOnly = G.map.layers[G.ball.pos.layer][indexXOnly];
 
-			if (tileXOnly === 'X') {
+			if (tileXOnly === 'X' || (tileXOnly === '#' && Math.abs(G.ball.vel.x) < 0.25)) {
 				G.ball.vel.x = 0;
+			} else if (tileXOnly === '#') {
+				G.ball.vel.x *= -0.5;
+				G.map.layers[G.ball.pos.layer][indexXOnly] = '?';
+
+				doSecretBlockBreak();
 			} else {
 				G.ball.pos.x = newBallX;
 			}
@@ -487,8 +675,13 @@ function tick() {
 			const indexYOnly = Math.floor(G.ball.pos.x) + Math.floor(newBallY) * G.map.size.width;
 			const tileYOnly = G.map.layers[G.ball.pos.layer][indexYOnly];
 
-			if (tileYOnly === 'X') {
+			if (tileYOnly === 'X' || (tileYOnly === '#' && Math.abs(G.ball.vel.y) < 0.25)) {
 				G.ball.vel.y = 0;
+			} else if (tileYOnly === '#') {
+				G.ball.vel.y *= -0.5;
+				G.map.layers[G.ball.pos.layer][indexYOnly] = '?';
+
+				doSecretBlockBreak();
 			} else {
 				G.ball.pos.y = newBallY;
 			}
@@ -512,21 +705,65 @@ function tick() {
 			} else if (newIndex != prevIndex && newTile === 'G') {
 				// entered goal
 
-				// start animation
-				G.winTimer = 60;
-
 				// stop the ball
 				G.ball.vel.x = 0;
 				G.ball.vel.y = 0;
 
-				PS.statusText("Level complete!");
-				PS.audioPlay("stageComplete", { fileTypes: ["wav"], path: "audio/", volume: 0.2 });
+				if (G.map === MAP_EGG_2) {
+					// start animation
+					G.winTimer = 90;
+
+					G.ascended = true;
+					PS.statusText("egg");
+					PS.audioPlay("ASCENDED", { fileTypes: ["wav"], path: "audio/", volume: 0.5 });
+				} else {
+					// start animation
+					G.winTimer = 60;
+
+					if (G.map === MAP_EGG_1) {
+						PS.audioPlay("HERE", { fileTypes: ["wav"], path: "audio/", volume: 0.5 });
+					} else {
+						PS.statusText("Level complete!");
+						PS.audioPlay("stageComplete", { fileTypes: ["wav"], path: "audio/", volume: 0.2 });
+					}
+				}
+			} else if (newIndex != prevIndex && newTile === '?') {
+				ascend();
 			}
 		}
 	}
 
 	// update the display
 	render();
+}
+
+function doSecretBlockBreak() {
+	// play secret sound effect
+	PS.audioPlay("secret", { fileTypes: ["wav"], path: "audio/", volume: 0.5 });
+
+	switch (G.map.musicTrack) {
+		case 0:
+			PS.audioFade(G.audio.musicChannelA, PS.CURRENT, 0.0);
+			break;
+		case 1:
+			PS.audioFade(G.audio.musicChannelB, PS.CURRENT, 0.0);
+			break;
+		case 2:
+			PS.audioFade(G.audio.musicChannelC, PS.CURRENT, 0.0);
+			break;
+		case 3:
+			PS.audioFade(G.audio.musicChannelD, PS.CURRENT, 0.0);
+			break;
+	}
+}
+
+function ascend() {
+	G.ascendTimer = G.ascendTimerMax;
+	G.ball.vel.x = 0;
+	G.ball.vel.y = 0;
+	G.control.tilt.x = 0;
+	G.control.tilt.y = 0;
+	PS.audioPlay("ASCEND", { fileTypes: ["wav"], path: "audio/" });
 }
 
 function render() {
@@ -574,6 +811,8 @@ function render() {
 				}
 			}
 
+			if (G.levelTransitionTimer > 0 && Math.random() > 0.25) continue;
+
 			// draw tile depending on type
 
 			PS.scale(x, y, 100);
@@ -582,6 +821,21 @@ function render() {
 
 				PS.radius(x, y, 0);
 				PS.color(x, y, G.winTimer !== null ? 0x015100 : G.map.theme.mainColor);
+			} else if (tile === '#') {
+				// breakable wall tile
+
+				PS.radius(x, y, 0);
+				PS.color(x, y, blendColors(G.winTimer !== null ? 0x015100 : G.map.theme.mainColor, PS.COLOR_BLACK, 0.1));
+			} else if (tile === '?') {
+				// wall tile
+
+				const time = new Date().getTime();
+
+				const rgb = hsvToRgb((time / 1500.0) % 1.0, 1.0, 1.0);
+
+				PS.scale(x, y, (Math.sin(time / 1000 * Math.PI) + 1.0) / 2.0 * 20 + 80);
+				PS.radius(x, y, (Math.sin(time / 1200 * Math.PI) + 1.0) / 2.0 * 20 + 30);
+				PS.color(x, y, PS.makeRGB(rgb[0], rgb[1], rgb[2]));
 			} else if (tile === 'G') {
 				// goal tile
 
@@ -611,7 +865,16 @@ function render() {
 		if (G.flashTime % 8 < 4 && ballInBounds) {
 			PS.scale(ballX + ofsX, ballY + ofsY, 90);
 			PS.radius(ballX + ofsX, ballY + ofsY, 50);
-			PS.color(ballX + ofsX, ballY + ofsY, 0x0080ff);
+
+			if (G.ascended) {
+				const time = new Date().getTime();
+
+				const rgb = hsvToRgb((time / 10000.0) % 1.0, 1.0, 1.0);
+
+				PS.color(ballX + ofsX, ballY + ofsY, PS.makeRGB(rgb[0], rgb[1], rgb[2]));
+			} else {
+				PS.color(ballX + ofsX, ballY + ofsY, 0x0080ff);
+			}
 		}
 
 		// draw the control indicators and gradient overlay on the upper plane
@@ -666,6 +929,38 @@ function render() {
 				PS.color(x + ofsX, y + ofsY, overlayColor);
 				PS.bgColor(x + ofsX, y + ofsY, PS.COLOR_BLACK);
 				PS.bgAlpha(x + ofsX, y + ofsY, Math.min(Math.max(dot / 0.05 + 0.1, 0.0), 1.0) * 255);
+			}
+		}
+
+		for (let x = 0; x < PS.gridSize().width; x++) {
+			for (let y = 0; y < PS.gridSize().height; y++) {
+				if (G.ascendTimer !== null) {
+					// G.holeAnimationTimer does G.holeAnimationTimerMax -> 0.0 -> -G.holeAnimationTimerMax
+
+					// map to 1.0 -> 0.0 -> 1.0
+					const thru = Math.abs(G.ascendTimer) / G.ascendTimerMax;
+
+					// fancy function to map to inf -> 0.0 -> inf
+					// having the function approach inf at 1.0 means it works on any board size
+					const distance = Math.tan(Math.PI * (1.0 - thru) * 0.5) * 4;
+
+					// distance from the drawing tile to the ball
+					const dx = Math.abs(Math.floor(G.ball.pos.x) - (x - ofsX));
+					const dy = Math.abs(Math.floor(G.ball.pos.y) - (y - ofsY));
+
+					// if the drawing tile distance is above the threshold distance, fill it with black and continue to the next tile
+					// mostly square mask with a bit of manhattan distance sprinkled in to round the edges (looks better than using a circle)
+					let dst = dx * dx + dy * dy;
+					if (dst < distance * distance) {
+						const time = new Date().getTime() - dst * G.ascendTimer / 10;
+
+						const rgb = hsvToRgb((time / 1500.0) % 1.0, 1.0, 1.0);
+
+						PS.scale(x, y, 100);
+						PS.radius(x, y, 0);
+						PS.color(x, y, PS.makeRGB(rgb[0], rgb[1], rgb[2]));
+					}
+				}
 			}
 		}
 
@@ -800,3 +1095,36 @@ PS.keyUp = function (key, shift, ctrl, options) {
 			break;
 	}
 };
+
+/// Source: https://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c
+/**
+ * Converts an HSV color value to RGB. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSV_color_space.
+ * Assumes h, s, and v are contained in the set [0, 1] and
+ * returns r, g, and b in the set [0, 255].
+ *
+ * @param   Number  h       The hue
+ * @param   Number  s       The saturation
+ * @param   Number  v       The value
+ * @return  Array           The RGB representation
+ */
+function hsvToRgb(h, s, v) {
+	let r, g, b;
+
+	let i = Math.floor(h * 6);
+	let f = h * 6 - i;
+	let p = v * (1 - s);
+	let q = v * (1 - f * s);
+	let t = v * (1 - (1 - f) * s);
+
+	switch (i % 6) {
+		case 0: r = v; g = t; b = p; break;
+		case 1: r = q; g = v; b = p; break;
+		case 2: r = p; g = v; b = t; break;
+		case 3: r = p; g = q; b = v; break;
+		case 4: r = t; g = p; b = v; break;
+		case 5: r = v; g = p; b = q; break;
+	}
+
+	return [r * 255, g * 255, b * 255];
+}
